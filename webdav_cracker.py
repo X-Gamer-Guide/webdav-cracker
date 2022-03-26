@@ -127,14 +127,14 @@ class WEBDAV:
         # brute force password file
         if args.passwords is not None:
             passwords = []
-            for password in args.passwords:
+            for index, password in enumerate(args.passwords):
                 while True:
                     if self.exit is not None:
                         return self.exit
                     if threading.active_count() < args.threads + 1:
                         passwords.append(password.strip())
                         if len(passwords) > 100:
-                            print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] password list")
+                            print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] password list {index}")
                             threading.Thread(target=self.check_passwords, daemon=True, args=(passwords,)).start()
                             passwords = []
                         break
@@ -144,14 +144,14 @@ class WEBDAV:
         # brute force JSON password file
         if args.json_passwords is not None:
             passwords = []
-            for password in json.load(args.json_passwords):
+            for index, password in enumerate(json.load(args.json_passwords)):
                 while True:
                     if self.exit is not None:
                         return self.exit
                     if threading.active_count() < args.threads + 1:
                         passwords.append(password)
                         if len(passwords) > 100:
-                            print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] JSON password list")
+                            print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] JSON password list {index}")
                             threading.Thread(target=self.check_passwords, daemon=True, args=(passwords,)).start()
                             passwords = []
                         break
@@ -161,14 +161,14 @@ class WEBDAV:
         # brute force CBOR password file
         if args.cbor_passwords is not None:
             passwords = []
-            for password in cbor.load(args.cbor_passwords):
+            for index, password in enumerate(cbor.load(args.cbor_passwords)):
                 while True:
                     if self.exit is not None:
                         return self.exit
                     if threading.active_count() < args.threads + 1:
                         passwords.append(password)
                         if len(passwords) > 100:
-                            print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] CBOR password list")
+                            print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] CBOR password list {index}")
                             threading.Thread(target=self.check_passwords, daemon=True, args=(passwords,)).start()
                             passwords = []
                         break
