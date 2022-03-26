@@ -123,7 +123,7 @@ class WEBDAV:
         self.started = False
         self.exit = None
 
-    def run(self) -> Tuple[requests.Request, str]:
+    def run(self) -> Tuple[requests.Response, str]:
         # brute force password file
         if args.passwords is not None:
             passwords = []
@@ -208,7 +208,7 @@ class WEBDAV:
         )
         # evaluate the response of the server
         if r.status_code != 401:
-            self.exit = password, r
+            self.exit = r, password
 
     def brute_force(self, start) -> None:
         for i in range(2):
@@ -218,7 +218,6 @@ class WEBDAV:
     def check_passwords(self, passwords) -> None:
         for password in passwords:
             self.check(password)
-
 
 
 webdav = WEBDAV()
