@@ -81,19 +81,19 @@ parser.add_argument(
 parser.add_argument(
     "--passwords",
     type=argparse.FileType("r"),
-    help="A file with passwords separated by \\n. After the file has been tried, the normal burte force mode turns on"
+    help="A file with passwords separated by \\n. After the file has been tried, the normal brute force mode turns on"
 )
 
 parser.add_argument(
     "--json_passwords",
     type=argparse.FileType("r"),
-    help="A JSON file with passwords. After the file has been tried, the normal burte force mode turns on"
+    help="A JSON file with passwords. After the file has been tried, the normal brute force mode turns on"
 )
 
 parser.add_argument(
     "--cbor_passwords",
     type=argparse.FileType("rb"),
-    help="A CBOR file with passwords. After the file has been tried, the normal burte force mode turns on"
+    help="A CBOR file with passwords. After the file has been tried, the normal brute force mode turns on"
 )
 
 parser.add_argument(
