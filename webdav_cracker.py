@@ -23,6 +23,7 @@ from typing import Tuple
 import cbor
 import requests
 
+
 parser = argparse.ArgumentParser(
     "webdav cracker",
     description="A tool to get access to a WEBDAV server",
@@ -154,11 +155,10 @@ class WEBDAV:
         self.exit = None
 
     def log(self, data):
-        msg = f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] {data}"
-        print(msg)
+        print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] {data}")
         if args.webhook is not None:
             discord.send({
-                "content": msg
+                "content": f"[`{time.strftime('%Y-%m-%d %H:%M:%S')}`] **{data}**"
             })
 
     def run(self) -> Tuple[requests.Response, str]:
