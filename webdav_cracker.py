@@ -216,6 +216,7 @@ class WebHook:
                 if r.status_code == 429:
                     time.sleep(r.json()['retry_after'] / 1000)
                     continue
+                r.raise_for_status()
                 break
             self.tasks.task_done()
 
@@ -394,7 +395,10 @@ if args.webhook is not None:
 
 # download all files
 if args.download is not None:
-    download_dir("", password)
+    try:
+        download_dir("", password)
+    except requests.exceptions.HTTPError as ex:
+        print(repr(ex))
 
 
 # wait for unsent webhooks
