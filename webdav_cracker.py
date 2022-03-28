@@ -88,12 +88,12 @@ parser.add_argument(
     "--start",
     metavar="START CHARACTERS",
     type=str,
-    help="The last letters that were seen in the terminal when it was last run. At this point the program continues",
+    help="The last characters that were seen in the terminal when it was last run. At this point the program continues",
     default="a"
 )
 
 parser.add_argument(
-    "--b64_letters",
+    "--b64_characters",
     metavar="BASE64 ENCODED CHARACTERS",
     type=str,
     help="The characters used to attack (base64 encoded)",
@@ -116,8 +116,8 @@ parser.add_argument(
 # get command line args
 args = parser.parse_args()
 
-# decode letters
-letters = base64.b64decode(args.b64_letters).decode()
+# decode characters
+characters = base64.b64decode(args.b64_characters).decode()
 
 # get index directory path
 if args.url.endswith("/"):
@@ -227,7 +227,7 @@ class WEBDAV:
         i = len(args.start)
         while True:
             i += 1
-            for j in map("".join, itertools.product(letters, repeat=i-1)):
+            for j in map("".join, itertools.product(characters, repeat=i-1)):
                 while True:
                     if self.exit is not None:
                         return self.exit
@@ -260,7 +260,7 @@ class WEBDAV:
 
     def brute_force(self, start) -> None:
         for i in range(2):
-            for j in map("".join, itertools.product(letters, repeat=i+1)):
+            for j in map("".join, itertools.product(characters, repeat=i+1)):
                 self.check(f"{start}{j}")
 
     def check_passwords(self, passwords) -> None:
