@@ -36,12 +36,12 @@ parser.add_argument(
     metavar="WEBDAV URL",
     required=True,
     type=str,
-    help="The DAV URL of the target"
+    help="The WEBDAV URL of the target"
 )
 
 parser.add_argument(
     "--username",
-    "USERNAME",
+    metavar="USERNAME",
     required=True,
     type=str,
     help="Username to attack",
@@ -79,14 +79,14 @@ parser.add_argument(
 
 parser.add_argument(
     "--webhook",
-    metavar="WEBHOOK",
+    metavar="DISCORD WEBHOOK",
     type=str,
     help="A Discord webhook to which information is transmitted"
 )
 
 parser.add_argument(
     "--start",
-    metavar="CHARACTERS",
+    metavar="START CHARACTERS",
     type=str,
     help="The last letters that were seen in the terminal when it was last run. At this point the program continues",
     default="a"
@@ -94,9 +94,9 @@ parser.add_argument(
 
 parser.add_argument(
     "--b64_letters",
-    metavar="BASE64",
+    metavar="BASE64 ENCODED CHARACTERS",
     type=str,
-    help="The letters used to attack (base64 encoded)",
+    help="The characters used to attack (base64 encoded)",
     default=base64.b64encode(
         (
             string.ascii_letters + string.digits + string.punctuation
@@ -108,7 +108,7 @@ parser.add_argument(
     "--user_agent",
     metavar="USER AGENT",
     type=str,
-    help="User agent for the requests",
+    help="User agent for the WEBDAV requests",
     default="Mozilla/5.0 (X11; Linux x86_64; rv:99.0) Gecko/20100101 Firefox/99.0"
 )
 
