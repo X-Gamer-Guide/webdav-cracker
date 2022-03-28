@@ -110,7 +110,7 @@ parser.add_argument(
     metavar="START CHARACTERS",
     type=str,
     help="The last characters that were seen in the terminal when it was last run. At this point the program continues",
-    default="a"
+    default=""
 )
 
 parser.add_argument(
