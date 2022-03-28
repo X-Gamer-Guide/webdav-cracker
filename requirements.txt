@@ -1,2 +1,3 @@
 requests
 cbor
+beautifulsoup4

