@@ -33,6 +33,7 @@ parser = argparse.ArgumentParser(
 
 parser.add_argument(
     "--url",
+    metavar="WEBDAV URL",
     required=True,
     type=str,
     help="The DAV URL of the target"
@@ -40,6 +41,7 @@ parser.add_argument(
 
 parser.add_argument(
     "--username",
+    "USERNAME",
     required=True,
     type=str,
     help="Username to attack",
@@ -48,6 +50,7 @@ parser.add_argument(
 
 parser.add_argument(
     "--user_agent",
+    metavar="USER AGENT",
     type=str,
     help="User agent for the requests",
     default="Mozilla/5.0 (X11; Linux x86_64; rv:99.0) Gecko/20100101 Firefox/99.0"
@@ -55,6 +58,7 @@ parser.add_argument(
 
 parser.add_argument(
     "--threads",
+    metavar="COUNT",
     type=int,
     help="The number of threads used",
     default=1
@@ -62,6 +66,7 @@ parser.add_argument(
 
 parser.add_argument(
     "--b64_letters",
+    metavar="BASE64",
     type=str,
     help="The letters used to attack (base64 encoded)",
     default=base64.b64encode(
@@ -73,6 +78,7 @@ parser.add_argument(
 
 parser.add_argument(
     "--start",
+    metavar="CHARACTERS",
     type=str,
     help="The last letters that were seen in the terminal when it was last run. At this point the program continues",
     default="a"
@@ -80,24 +86,28 @@ parser.add_argument(
 
 parser.add_argument(
     "--passwords",
+    metavar="TEXT FILE",
     type=argparse.FileType("r"),
     help="A file with passwords separated by \\n. After the file has been tried, the normal brute force mode turns on"
 )
 
 parser.add_argument(
     "--json_passwords",
+    metavar="JSON FILE",
     type=argparse.FileType("r"),
     help="A JSON file with passwords. After the file has been tried, the normal brute force mode turns on"
 )
 
 parser.add_argument(
     "--cbor_passwords",
+    metavar="CBOR FILE",
     type=argparse.FileType("rb"),
     help="A CBOR file with passwords. After the file has been tried, the normal brute force mode turns on"
 )
 
 parser.add_argument(
     "--webhook",
+    metavar="WEBHOOK",
     type=str,
     help="A Discord webhook to which information is transmitted"
 )
