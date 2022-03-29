@@ -36,27 +36,33 @@ from bs4 import BeautifulSoup
 
 def dir_path(path) -> str:
     real = os.path.realpath(path)
-    if os.path.isdir(real):
-        return real
-    else:
-        raise NotADirectoryError(real)
+    if os.path.exists(real):
+        if os.path.isdir(real):
+            return real
+        else:
+            parser.error(f"'{real}' is not a directory")
+    os.mkdir(real)
+    return real
 
 
 def url(url) -> str:
     if not validators.url(url):
-        raise Exception(f"Not a valid URL: {url}")
+        parser.error(f"'{url}' is not a valid URL")
     return url
 
 
 def b64(b64) -> str:
-    return base64.b64decode(b64).decode()
+    end = base64.b64decode(b64.encode())
+    if b64 != base64.b64encode(end).decode():
+        parser.error(f"'{b64}' is not valid base64")
+    return end.decode()
 
 
 # get command line args
 
 
 parser = argparse.ArgumentParser(
-    "webdav cracker",
+    "webdav_cracker",
     description="A tool to get access to a WEBDAV server",
     epilog="Copyright (C) 2022 X Gamer Guide"
 )
@@ -86,21 +92,23 @@ parser.add_argument(
     default=1
 )
 
-parser.add_argument(
+passwords = parser.add_argument_group()
+
+passwords.add_argument(
     "--passwords",
     metavar="TEXT FILE",
     type=argparse.FileType("r"),
     help="A file with passwords separated by \\n. After the file has been tried, the normal brute force mode turns on"
 )
 
-parser.add_argument(
+passwords.add_argument(
     "--json_passwords",
     metavar="JSON FILE",
     type=argparse.FileType("r"),
     help="A JSON file with passwords. After the file has been tried, the normal brute force mode turns on"
 )
 
-parser.add_argument(
+passwords.add_argument(
     "--cbor_passwords",
     metavar="CBOR FILE",
     type=argparse.FileType("rb"),
