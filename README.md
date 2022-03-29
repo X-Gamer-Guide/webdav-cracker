@@ -2,19 +2,33 @@
 
 A tool to get access to a WEBDAV server. This tool currently only uses brute force, but further steps are planned.
 
-## Start
+## Linux
 
-### Linux
+### Setup
 
 1. `python3 -m pip install -r requirements.txt`
 
-2. Run `python3 webdav_cracker.py --help` for more information
+2. `cp webdav_cracker.py ~/.local/bin/webdav_cracker`
 
-### Windows
+3. `chmod +x ~/.local/bin/webdav_cracker`
 
-1. `py -m pip install -r requirements.txt`
+### Start
 
-2. Run `py webdav_cracker.py --help` for more information
+Run `webdav_cracker --help` for more information
+
+### Uninstall
+
+`rm ~/.local/bin/webdav_cracker`
+
+## Windows
+
+### Setup
+
+`py -m pip install -r requirements.txt`
+
+### Start
+
+Run `py webdav_cracker.py --help` for more information
 
 ## Disclaimer
 
