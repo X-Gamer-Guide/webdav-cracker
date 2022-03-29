@@ -35,10 +35,11 @@ from bs4 import BeautifulSoup
 
 
 def dir_path(path) -> str:
-    if os.path.isdir(path):
-        return path
+    real = os.path.realpath(path)
+    if os.path.isdir(real):
+        return real
     else:
-        raise NotADirectoryError(path)
+        raise NotADirectoryError(real)
 
 
 def url(url) -> str:
@@ -150,11 +151,16 @@ parser.add_argument(
 args = parser.parse_args()
 
 
-# create WEBDAV session
-dav = requests.session()
-dav.headers = {
-    "User-Agent": args.user_agent
-}
+def get_dir(path: str) -> str:
+    "Checks if the path is allowed"
+
+    real = os.path.realpath(os.path.join(args.download, path))
+    if os.path.commonprefix((
+        real,
+        args.download
+    )) == args.download:
+        return real
+    raise Exception(f"Forbidden path: {real}")
 
 
 def download_dir(path: str, password: str) -> None:
@@ -181,8 +187,8 @@ def download_dir(path: str, password: str) -> None:
 
         # download subfolder
         if href.endswith("/"):
-            os.mkdir(os.path.join(args.download, f"{path}{href}"))
-            download_dir(f"{path}{href}")
+            os.mkdir(get_dir(f"{path}{href}"))
+            download_dir(f"{path}{href}", password)
             continue
 
         # download file
@@ -195,7 +201,7 @@ def download_dir(path: str, password: str) -> None:
             stream=True
         )
         r.raise_for_status()
-        with open(os.path.join(args.download, f"{path}{href}"), "wb") as f:
+        with open(get_dir(f"{path}{href}"), "wb") as f:
             for chunk in r.iter_content(1048576):
                 f.write(chunk)
 
@@ -337,9 +343,17 @@ class BruteForce:
                 self.check(f"{start}{j}")
 
 
+# create WEBDAV session
+dav = requests.session()
+dav.headers = {
+    "User-Agent": args.user_agent
+}
+
+# send discord webhooks when required
 webhook = WebHook()
 threading.Thread(target=webhook.run, daemon=True).start()
 
+# start brute force
 brute_force = BruteForce()
 response, password = brute_force.run()
 
