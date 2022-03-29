@@ -147,6 +147,14 @@ parser.add_argument(
     default="Mozilla/5.0 (X11; Linux x86_64; rv:99.0) Gecko/20100101 Firefox/99.0"
 )
 
+parser.add_argument(
+    "--chunk_size",
+    metavar="BYTES",
+    type=int,
+    help="buffer size in bytes",
+    default=1048576
+)
+
 
 args = parser.parse_args()
 
@@ -208,7 +216,7 @@ def download_dir(path: str, password: str, response: Optional[requests.Response]
         )
         r.raise_for_status()
         with open(get_dir(f"{path}{href}"), "wb") as f:
-            for chunk in r.iter_content(1048576):
+            for chunk in r.iter_content(args.chunk_size):
                 f.write(chunk)
 
 
