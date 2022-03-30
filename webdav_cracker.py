@@ -64,10 +64,13 @@ def b64(b64) -> str:
 parser = argparse.ArgumentParser(
     "webdav_cracker",
     description="A tool to get access to a WEBDAV server",
-    epilog="Copyright (C) 2022 X Gamer Guide"
+    epilog="Copyright (C) 2022 X Gamer Guide",
+    add_help=True
 )
 
-parser.add_argument(
+required = parser.add_argument_group("required")
+
+required.add_argument(
     "--url",
     metavar="WEBDAV URL",
     required=True,
@@ -75,7 +78,7 @@ parser.add_argument(
     help="The WEBDAV URL of the target"
 )
 
-parser.add_argument(
+required.add_argument(
     "--username",
     metavar="USERNAME",
     required=True,
@@ -84,19 +87,39 @@ parser.add_argument(
     default="admin"
 )
 
-parser.add_argument(
+features = parser.add_argument_group("optional features")
+
+features.add_argument(
     "--threads",
     metavar="COUNT",
+    required=False,
     type=int,
     help="The number of threads used",
     default=1
 )
 
-passwords = parser.add_argument_group()
+features.add_argument(
+    "--webhook",
+    metavar="DISCORD WEBHOOK",
+    required=False,
+    type=url,
+    help="A Discord webhook to which information is transmitted"
+)
+
+features.add_argument(
+    "--download",
+    metavar="DOWNLOAD PATH",
+    required=False,
+    type=dir_path,
+    help="After brute forcing the password, all files are downloaded to the specified folder"
+)
+
+passwords = parser.add_argument_group("password lists")
 
 passwords.add_argument(
     "--passwords",
     metavar="TEXT FILE",
+    required=False,
     type=argparse.FileType("r"),
     help="A file with passwords separated by \\n. After the file has been tried, the normal brute force mode turns on"
 )
@@ -104,6 +127,7 @@ passwords.add_argument(
 passwords.add_argument(
     "--json_passwords",
     metavar="JSON FILE",
+    required=False,
     type=argparse.FileType("r"),
     help="A JSON file with passwords. After the file has been tried, the normal brute force mode turns on"
 )
@@ -111,35 +135,26 @@ passwords.add_argument(
 passwords.add_argument(
     "--cbor_passwords",
     metavar="CBOR FILE",
+    required=False,
     type=argparse.FileType("rb"),
     help="A CBOR file with passwords. After the file has been tried, the normal brute force mode turns on"
 )
 
-parser.add_argument(
-    "--webhook",
-    metavar="DISCORD WEBHOOK",
-    type=url,
-    help="A Discord webhook to which information is transmitted"
-)
+advanced = parser.add_argument_group("advanced options")
 
-parser.add_argument(
-    "--download",
-    metavar="DOWNLOAD PATH",
-    type=dir_path,
-    help="After brute forcing the password, all files are downloaded to the specified folder"
-)
-
-parser.add_argument(
+advanced.add_argument(
     "--b64_start",
     metavar="START CHARACTERS",
+    required=False,
     type=b64,
     help="The last characters that were seen in the terminal when it was last run (base64 encoded). At this point the program continues",
     default=""
 )
 
-parser.add_argument(
+advanced.add_argument(
     "--b64_characters",
     metavar="BASE64 ENCODED CHARACTERS",
+    required=False,
     type=b64,
     help="The characters used to attack (base64 encoded)",
     default=base64.b64encode((
@@ -147,17 +162,19 @@ parser.add_argument(
     ).encode()).decode()
 )
 
-parser.add_argument(
+advanced.add_argument(
     "--user_agent",
     metavar="USER AGENT",
+    required=False,
     type=str,
     help="User agent for the WEBDAV requests",
     default="Mozilla/5.0 (X11; Linux x86_64; rv:99.0) Gecko/20100101 Firefox/99.0"
 )
 
-parser.add_argument(
+advanced.add_argument(
     "--chunk_size",
     metavar="BYTES",
+    required=False,
     type=int,
     help="buffer size in bytes",
     default=1048576
